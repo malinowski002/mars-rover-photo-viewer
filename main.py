@@ -1,96 +1,41 @@
-import urllib.request
-import webbrowser
-
-import requests
 import customtkinter
-from PIL import Image
+from photo_viewer import display_photo, open_in_browser
+from api_handler import get_photos
 
 global current_photo, photo_urls, label_img, photos_count, label_current, label_camera, label_earth_date, slider, sol
-
-
-def get_photos(api_key, sol):
-    api_url = f"https://api.nasa.gov/mars-photos/api/v1/rovers/curiosity/photos"
-    parameters = {
-        "api_key": api_key,
-        "sol": sol
-    }
-    response = requests.get(api_url, params=parameters)
-    response.raise_for_status()
-    return response.json()["photos"]
-
-
-def display_photo(photo_index):
-    global photo_urls, photos_count, label_img, label_current, label_camera, label_earth_date
-
-    url = photo_urls[photo_index][0].replace("http://mars.jpl.nasa.gov", "https://mars.nasa.gov")
-    urllib.request.urlretrieve(
-        url,
-        "photo"
-    )
-    image = Image.open("photo")
-
-    max_width = 650
-    max_height = 650
-
-    if image.width > max_width or image.height > max_height:
-        ratio = min(max_width / image.width, max_height / image.height)
-    else:
-        ratio = max_width / image.width
-        if (image.height * ratio) > max_height:
-            ratio = max_height / image.height
-
-    width = round(image.width * ratio)
-    height = round(image.height * ratio)
-
-    main_image = customtkinter.CTkImage(light_image=Image.open("photo"), size=(width, height))
-    label_img.configure(image=main_image)
-    label_img.image = main_image
-
-    label_current.configure(text=f"{current_photo}/{photos_count - 1}")
-    label_camera.configure(text=f"Camera used:\n{photo_urls[photo_index][1]}")
-    label_earth_date.configure(text=f"Earth date: {photo_urls[photo_index][2]}")
 
 
 def prev_photo():
     global photos_count, current_photo, label_current
     current_photo = (current_photo - 1) % photos_count
-    display_photo(current_photo)
+    display_photo(current_photo, photo_urls, label_img, label_current, label_camera, label_earth_date)
 
 
 def next_photo():
     global photos_count, current_photo, label_current
     current_photo = (current_photo + 1) % photos_count
-    display_photo(current_photo)
+    display_photo(current_photo, photo_urls, label_img, label_current, label_camera, label_earth_date)
 
 
 def slider_event(value):
     global current_photo
     current_photo = int(value)
-    display_photo(current_photo)
+    display_photo(current_photo, photo_urls, label_img, label_current, label_camera, label_earth_date)
 
 
 def go_to_sol(sol_number):
     global photo_urls, photos_count, current_photo, label_img, label_current, label_camera, label_earth_date, slider, sol
     sol = sol_number
     photos = get_photos("DEMO_KEY", sol_number)
-    photo_urls = []
-    for photo in photos:
-        photo_urls.append((photo["img_src"], photo["camera"]["full_name"], photo["earth_date"]))
-        print(photo)
+    photo_urls = [(photo["img_src"], photo["camera"]["full_name"], photo["earth_date"]) for photo in photos]
     photos_count = len(photo_urls)
     if photos_count > 0:
         current_photo = 0
-        display_photo(current_photo)
+        display_photo(current_photo, photo_urls, label_img, label_current, label_camera, label_earth_date)
         slider.configure(to=photos_count - 1)
         slider.set(0)
         label_current.configure(text=f"{current_photo}/{photos_count - 1}")
     return photos
-
-
-def open_in_browser():
-    global photo_urls, current_photo
-    print(photo_urls[current_photo][0])
-    webbrowser.open_new(photo_urls[current_photo][0])
 
 
 def main():
@@ -134,7 +79,7 @@ def main():
 
     label_current = customtkinter.CTkLabel(
         root,
-        text=f"{current_photo}/{photos_count-1}",
+        text=f"{current_photo}/{photos_count - 1}",
         font=("Helvetica", 16)
     )
     label_current.place(x=670, y=70)
@@ -208,7 +153,7 @@ def main():
         hover_color="#A75022",
         width=270,
         corner_radius=0,
-        command=open_in_browser,
+        command=lambda: open_in_browser(photo_urls, current_photo),
         font=("Helvetica SemiBold", 13),
         height=35,
         anchor="center"
@@ -223,9 +168,10 @@ def main():
     print(photo_urls)
     photos_count = len(photo_urls)
 
-    display_photo(current_photo)
+    display_photo(current_photo, photo_urls, label_img, label_current, label_camera, label_earth_date)
 
     root.mainloop()
 
 
-main()
+if __name__ == "__main__":
+    main()
